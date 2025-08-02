@@ -1,6 +1,7 @@
 # RCDMMP
 
-# For now, only the core code is displayed (File_a.py is the the core code of the diffusion model in the paper, and the File_b.py is the backbone of the diffusion model). The complete code is coming soon.
+# For now, only the core code is displayed and the complete code is coming soon.
+ File_a.py is the the core code of the diffusion model in the paper, File_b.py is the backbone of the diffusion model and the File_c.py contains the pre-processing code.
 
 # Datasets
 For AIops18, please refer to https://github.com/BEbillionaireUSD/Maat
