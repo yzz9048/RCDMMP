@@ -190,29 +190,43 @@ class Diffusion_TS(nn.Module):
     def _train_loss(self, x_0, t, labels, DeltaT, clip, noise=None, padding_masks=None):
         if DeltaT < x_0.shape[1]:
             history = x_0[:,:-DeltaT,:] 
-            target = x_0[:,-DeltaT:,1:] # Note that the first window needs to be known, and then output the batch-1 window to compare with the target
+            target = x_0[:,-DeltaT:,1:] 
         else:
-            history = x_0 
-            target = x_0[1:,:,1:]
+            history = x_0
+            target = x_0[:,:,1:]
         noise = default(noise, lambda: torch.randn_like(target))
-        x = self.q_sample(x_start=target, t=t, noise=noise)  # Forward diffusion denoising of the target
+        x = self.q_sample(x_start=target, t=t, noise=noise)  # 对target前向扩散增噪
 
         model_out, loss_causal = self.output(x, history, t, clip, padding_masks)  # 【batch_size,DeltaT,feature_dim】
-            
-        train_loss = self.loss_fn(model_out, target, reduction='none') # The model continuously fits the target metrics from the noise
-
+        
+        if DeltaT < x_0.shape[1]:
+            train_loss = self.loss_fn(model_out, target, reduction='none') # 模型从噪声中不断拟合target
+        else:
+            train_loss = self.loss_fn(model_out[:-1,:,:], target[1:,:,:], reduction='none') 
 
         fourier_loss = torch.tensor([0.])
         if self.use_ff:
-            fft1 = torch.fft.fft(model_out.transpose(1, 2), norm='forward')
-            fft2 = torch.fft.fft(target.transpose(1, 2), norm='forward')
-            fft1, fft2 = fft1.transpose(1, 2), fft2.transpose(1, 2)
-            fourier_loss = self.loss_fn(torch.real(fft1), torch.real(fft2), reduction='none')\
-                           + self.loss_fn(torch.imag(fft1), torch.imag(fft2), reduction='none')
-            train_loss +=  self.ff_weight * fourier_loss
+            if DeltaT < x_0.shape[1]:
+                fft1 = torch.fft.fft(model_out.transpose(1, 2), norm='forward')
+                fft2 = torch.fft.fft(target.transpose(1, 2), norm='forward')
+                fft1, fft2 = fft1.transpose(1, 2), fft2.transpose(1, 2)
+                fourier_loss = self.loss_fn(torch.real(fft1), torch.real(fft2), reduction='none')\
+                            + self.loss_fn(torch.imag(fft1), torch.imag(fft2), reduction='none')
+                train_loss +=  self.ff_weight * fourier_loss
+            else:
+                fft1 = torch.fft.fft(model_out[:-1,:,:].transpose(1, 2), norm='forward')
+                fft2 = torch.fft.fft(target[1:,:,:].transpose(1, 2), norm='forward')
+                fft1, fft2 = fft1.transpose(1, 2), fft2.transpose(1, 2)
+                fourier_loss = self.loss_fn(torch.real(fft1), torch.real(fft2), reduction='none')\
+                            + self.loss_fn(torch.imag(fft1), torch.imag(fft2), reduction='none')
+                train_loss +=  self.ff_weight * fourier_loss
         
         train_loss = reduce(train_loss, 'b ... -> b (...)', 'mean')
-        train_loss = train_loss * extract(self.loss_weight, t, train_loss.shape)
+        if DeltaT < x_0.shape[1]:
+            train_loss = train_loss * extract(self.loss_weight, t, train_loss.shape)
+        else:
+            t = t[1:]
+            train_loss = train_loss * extract(self.loss_weight, t, train_loss.shape)
         train_loss = train_loss.mean()
 
         sigma1_sq = torch.exp(self.log_sigma1) 
