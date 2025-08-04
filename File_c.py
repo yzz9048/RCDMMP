@@ -70,7 +70,7 @@ class CustomDataset(Dataset):
     def __getsamples(self, data, proportion, DeltaT, seed):
         x = np.zeros((self.sample_num_total, self.window, self.var_num))
         i = 0
-        for w in range(self.window, data.shape[0] - self.window + 1, DeltaT): # 按窗口切分self.data
+        for w in range(self.window, data.shape[0] - self.window + 1, DeltaT): # Split self.data by window
             end= w
             start = w - self.window
             x[i, :, :] = data[start:end, :]
@@ -107,10 +107,10 @@ class CustomDataset(Dataset):
         return d.reshape(-1, self.window, self.var_num-1)
     
     def __normalize(self, rawdata):
-        data = self.scaler_rps.transform(rawdata[:,0].reshape(-1, 1)) # 调整到 【0，1】
+        data = self.scaler_rps.transform(rawdata[:,0].reshape(-1, 1))
         data = np.concatenate([data,self.scaler_data.transform(rawdata[:,1:])], axis=1)
         if self.auto_norm:
-            data = normalize_to_neg_one_to_one(data) #调整到 【-1，1】
+            data = normalize_to_neg_one_to_one(data)
         return data
 
     def __unnormalize(self, data):
@@ -130,7 +130,7 @@ class CustomDataset(Dataset):
         regular_train_num = int(np.ceil(size * ratio))
         # id_rdm = np.random.permutation(size)
         id_rdm = np.arange(size)
-        regular_train_id = id_rdm[:regular_train_num] # 前窗口数*proportion为train，后为test
+        regular_train_id = id_rdm[:regular_train_num] 
         irregular_train_id = id_rdm[regular_train_num:]
 
         regular_data = data[regular_train_id, :]
@@ -146,10 +146,10 @@ class CustomDataset(Dataset):
         """
         df = pd.read_csv(filepath, header=0)
         # if name == 'drift':
-            # df.drop(df.columns[0:2], axis=1, inplace=True) # 删除前两列
-        df.drop(df.columns[0], axis=1, inplace=True) # 删除第一列
+            # df.drop(df.columns[0:2], axis=1, inplace=True) 
+        df.drop(df.columns[0], axis=1, inplace=True) 
         data = df.values
-        scaler_rps = MinMaxScaler() #将数据缩放到指定大小值之间（默认0，1），加速收敛
+        scaler_rps = MinMaxScaler()
         scaler_data = MinMaxScaler()
         scaler_rps = scaler_rps.fit(data[:,0].reshape(-1, 1))
         scaler_data = scaler_data.fit(data[:,1:-1])

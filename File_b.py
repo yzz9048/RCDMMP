@@ -74,7 +74,7 @@ class FourierLayer(nn.Module):
 
     def topk_freq(self, x_freq):
         length = x_freq.shape[1]
-        top_k = int(self.factor * math.log(length)) #对序列数量取ln
+        top_k = int(self.factor * math.log(length))
         values, indices = torch.topk(x_freq.abs(), top_k, dim=1, largest=True, sorted=True)
         mesh_a, mesh_b = torch.meshgrid(torch.arange(x_freq.size(0)), torch.arange(x_freq.size(2)), indexing='ij')
         index_tuple = (mesh_a.unsqueeze(1), indices, mesh_b.unsqueeze(1))
@@ -481,13 +481,13 @@ class Transformer(nn.Module):
         mask = causal_scores > 0.1  
         causal_scores = causal_scores * mask
 
-        # 因果加权              
+        # Causal weighting  
         cond_data = 3/10 * (causal_scores.unsqueeze(1)*rps_data[:,:,0].unsqueeze(-1) + (1-causal_scores.unsqueeze(1))*history[:,:,1:]) \
             + 7/10 * (causal_scores.unsqueeze(1)*rps_data[:,:,1].unsqueeze(-1) + (1-causal_scores.unsqueeze(1))*history[:,:,1:])
         
-        # 融合噪声和条件数据作为输入
+        # Integrate noise and conditional data as inputs
         input = torch.cat([torch.zeros(input.shape[0], input.shape[1], 2).cuda(),input], dim=-1)
-        emb = self.emb(input) # 输入是对target的加噪数据 
+        emb = self.emb(input) 
         inp_dec = self.pos_dec(emb)
         cond_feature = self.emb_cond(cond_data)
         inp_enc = self.pos_enc(cond_feature)

@@ -195,12 +195,12 @@ class Diffusion_TS(nn.Module):
             history = x_0
             target = x_0[:,:,1:]
         noise = default(noise, lambda: torch.randn_like(target))
-        x = self.q_sample(x_start=target, t=t, noise=noise)  # 对target前向扩散增噪
+        x = self.q_sample(x_start=target, t=t, noise=noise)  # Forward diffusion denoising of the target
 
         model_out, loss_causal = self.output(x, history, t, clip, padding_masks)  # 【batch_size,DeltaT,feature_dim】
         
         if DeltaT < x_0.shape[1]:
-            train_loss = self.loss_fn(model_out, target, reduction='none') # 模型从噪声中不断拟合target
+            train_loss = self.loss_fn(model_out, target, reduction='none') # The model continuously fits the target from the noise
         else:
             train_loss = self.loss_fn(model_out[:-1,:,:], target[1:,:,:], reduction='none') 
 
@@ -288,7 +288,7 @@ class Diffusion_TS(nn.Module):
         model_mean, _, model_log_variance, _= \
             self.p_mean_variance(x=x, history=history, t=batched_times, clip=clip, clip_denoised=clip_denoised)
         noise = torch.randn_like(x) if t > 0 else 0.  # no noise if t == 0
-        sigma = (0.5 * model_log_variance).exp() # 计算指数函数值
+        sigma = (0.5 * model_log_variance).exp() 
         pred_img = model_mean + sigma * noise
 
         # pred_img = self.langevin_fn(sample=pred_img, history=history, mean=model_mean, sigma=sigma, t=batched_times,
